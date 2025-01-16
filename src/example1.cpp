@@ -43,6 +43,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #if defined(_MSC_VER)
 #  pragma warning (disable: 4505) // don't warn about dead code in stb_image.h
+#  pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
 #elif defined(__GNUC__)
 #   pragma GCC diagnostic ignored "-Wunused-function"
 #endif
@@ -54,6 +55,10 @@ class ExampleApplication : public Screen {
 public:
     ExampleApplication() : Screen(Vector2i(1024, 768), "NanoGUI Test") {
         inc_ref();
+
+        set_icon("C:\\Users\\camille\\Pictures\\icon.ico");
+        set_captionbar_color(0x00303030);
+
         Window *window = new Window(this, "Button demo");
         window->set_position(Vector2i(15, 15));
         window->set_layout(new GroupLayout());

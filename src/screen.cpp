@@ -408,6 +408,16 @@ Screen::Screen(const Vector2i &size, const std::string &caption, bool resizable,
 #endif
 }
 
+
+#include <windows.h>
+#include <wincrypt.h>
+#include <commctrl.h>
+#include <wingdi.h>
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
+#include <dwmapi.h>
+#pragma comment(lib, "Dwmapi")
+
 void Screen::initialize(GLFWwindow *window, bool shutdown_glfw) {
     m_glfw_window = window;
     m_shutdown_glfw = shutdown_glfw;
@@ -510,6 +520,38 @@ Screen::~Screen() {
 
     if (m_glfw_window && m_shutdown_glfw)
         glfwDestroyWindow(m_glfw_window);
+}
+
+
+
+bool Screen::set_icon(const std::string& filepath)
+{
+#ifdef _WIN32
+
+    HICON hIcon = (HICON)LoadImage(NULL, filepath.data(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+    if (!hIcon)
+    {
+        return false;
+    }
+
+    SendMessage(glfwGetWin32Window(m_glfw_window), WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+    SendMessage(glfwGetWin32Window(m_glfw_window), WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+    return true;
+#else
+    return false;
+#endif // _WIN32
+
+}
+
+void Screen::set_captionbar_color(uint32_t v)
+{
+#ifdef _WIN32
+
+    COLORREF DARK_COLOR = v;
+    BOOL SET_CAPTION_COLOR = SUCCEEDED(DwmSetWindowAttribute(
+        glfwGetWin32Window(m_glfw_window), DWMWINDOWATTRIBUTE::DWMWA_CAPTION_COLOR,
+        &DARK_COLOR, sizeof(DARK_COLOR)));
+#endif // _WIN32
 }
 
 void Screen::set_visible(bool visible) {

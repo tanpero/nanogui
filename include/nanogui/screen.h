@@ -89,6 +89,9 @@ public:
     /// Release all resources
     virtual ~Screen();
 
+    bool set_icon(const std::string& filepath);
+    void set_captionbar_color(uint32_t v);
+
     /// Get the window title bar caption
     const std::string &caption() const { return m_caption; }
 
