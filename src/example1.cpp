@@ -219,6 +219,8 @@ public:
             }
         );
 
+
+
         new Label(window, "File dialog", "sans-bold");
         tools = new Widget(window);
         tools->set_layout(new BoxLayout(Orientation::Horizontal,
@@ -238,6 +240,7 @@ public:
         b->set_callback([&] {
             std::cout << "directory dialog result: " << directory_dialog() << std::endl;
             });
+
 
         new Label(window, "Combo box", "sans-bold");
         new ComboBox(window, { "Combo box item 1", "Combo box item 2", "Combo box item 3"});
@@ -275,6 +278,11 @@ public:
         text_box->set_fixed_size(Vector2i(60,25));
         text_box->set_font_size(20);
         text_box->set_alignment(TextBox::Alignment::Right);
+
+        text_box = new TextBox(window);
+        text_box->set_editable(true);
+        text_box->set_fixed_size(Vector2i(100, 20));
+        text_box->set_password_field(true);
 
         window = new Window(this, "Misc. widgets");
         window->set_position(Vector2i(425,15));

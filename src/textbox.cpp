@@ -1,4 +1,4 @@
-/*
+﻿/*
     src/textbox.cpp -- Fancy text box with builtin regular
     expression-based validation
 
@@ -27,6 +27,8 @@ TextBox::TextBox(Widget *parent, const std::string &value)
       m_editable(false),
       m_spinnable(false),
       m_committed(true),
+      m_password(false),
+      m_password_mask('*'),
       m_value(value),
       m_default_value(""),
       m_alignment(Alignment::Center),
@@ -211,7 +213,11 @@ void TextBox::draw(NVGcontext* ctx) {
     draw_pos.x() += m_text_offset;
 
     if (m_committed) {
-        nvgText(ctx, draw_pos.x(), draw_pos.y(), m_value.empty() ? m_placeholder.c_str() : m_value.c_str(), nullptr);
+        nvgText(ctx, draw_pos.x(), draw_pos.y(),
+            m_value.empty()
+            ? m_placeholder.c_str()
+            : value_or_mask_str(m_value).c_str()
+            , nullptr);
     } else {
         const int max_glyphs = 1024;
         NVGglyphPosition glyphs[max_glyphs];
@@ -240,13 +246,20 @@ void TextBox::draw(NVGcontext* ctx) {
         draw_pos.x() = old_draw_pos.x() + m_text_offset;
 
         // draw text with offset
-        nvgText(ctx, draw_pos.x(), draw_pos.y(), m_value_temp.c_str(), nullptr);
+        nvgText(ctx, draw_pos.x(), draw_pos.y(),
+            value_or_mask_str(m_value_temp).c_str()
+            , nullptr);
+
+        nvgTextBounds(ctx, draw_pos.x(), draw_pos.y(),
+            value_or_mask_str(m_value_temp).c_str()
+            , nullptr, text_bound);
         nvgTextBounds(ctx, draw_pos.x(), draw_pos.y(), m_value_temp.c_str(),
                       nullptr, text_bound);
 
         // recompute cursor positions
         nglyphs = nvgTextGlyphPositions(ctx, draw_pos.x(), draw_pos.y(),
-                m_value_temp.c_str(), nullptr, glyphs, max_glyphs);
+            value_or_mask_str(m_value_temp).c_str()
+            , nullptr, glyphs, max_glyphs);
 
         if (m_cursor_pos > -1) {
             if (m_selection_pos > -1) {
@@ -302,7 +315,7 @@ bool TextBox::mouse_button_event(const Vector2i &p, int button, bool down,
             if (time - m_last_click < 0.25) {
                 /* Double-click: select all text */
                 m_selection_pos = 0;
-                m_cursor_pos = (int) m_value_temp.size();
+                m_cursor_pos = (int)utf8_glyphlen(m_value_temp);
                 m_mouse_down_pos = Vector2i(-1, -1);
             }
             m_last_click = time;
@@ -366,6 +379,27 @@ bool TextBox::mouse_drag_event(const Vector2i &p, const Vector2i &/* rel */,
 }
 
 bool TextBox::focus_event(bool focused) {
+
+    /*
+     * Copyright © oikumene
+     * Apr 17, 2022
+     */
+    /*
+     * Workaround to allow input from an input method (when using Japanese,
+     * etc.) When using an IM, an application switch between the nanogui
+     * application and the IM occurs. When back from the IM, focus_event()
+     * is invoked without mouse being pressed on the Screen. When such
+     * event is detected, leave focus as it was before the application
+     * switch to the IM.
+     */
+    Widget* p = this;
+    while (p->parent() != nullptr)
+        p = p->parent();
+    GLFWwindow* w = dynamic_cast<Screen*>(p)->glfw_window();
+    int mouse_button = glfwGetMouseButton(w, GLFW_MOUSE_BUTTON_LEFT);
+    if (mouse_button == GLFW_RELEASE)
+        return m_focused;
+
     Widget::focus_event(focused);
 
     std::string backup = m_value;
@@ -420,7 +454,7 @@ bool TextBox::keyboard_event(int key, int /* scancode */, int action, int modifi
                     m_selection_pos = -1;
                 }
 
-                if (m_cursor_pos < (int) m_value_temp.length())
+                if (m_cursor_pos < (int) utf8_glyphlen(m_value_temp))
                     m_cursor_pos++;
             } else if (key == GLFW_KEY_HOME) {
                 if (modifiers == GLFW_MOD_SHIFT) {
@@ -439,24 +473,27 @@ bool TextBox::keyboard_event(int key, int /* scancode */, int action, int modifi
                     m_selection_pos = -1;
                 }
 
-                m_cursor_pos = (int) m_value_temp.size();
+                m_cursor_pos = (int) utf8_glyphlen(m_value_temp);
             } else if (key == GLFW_KEY_BACKSPACE) {
                 if (!delete_selection()) {
                     if (m_cursor_pos > 0) {
-                        m_value_temp.erase(m_value_temp.begin() + m_cursor_pos - 1);
                         m_cursor_pos--;
+                        size_t str_pos = utf8_strpos(m_value_temp, m_cursor_pos);
+                        m_value_temp.erase(str_pos, utf8_charcount(m_value_temp[str_pos]));
                     }
                 }
             } else if (key == GLFW_KEY_DELETE) {
                 if (!delete_selection()) {
-                    if (m_cursor_pos < (int) m_value_temp.length())
-                        m_value_temp.erase(m_value_temp.begin() + m_cursor_pos);
+                    if (m_cursor_pos < (int)utf8_glyphlen(m_value_temp)) {
+                        size_t str_pos = utf8_strpos(m_value_temp, m_cursor_pos);
+                        m_value_temp.erase(str_pos, utf8_charcount(m_value_temp[str_pos]));
+                    }
                 }
             } else if (key == GLFW_KEY_ENTER) {
                 if (!m_committed)
                     focus_event(false);
             } else if (key == GLFW_KEY_A && modifiers == SYSTEM_COMMAND_MOD) {
-                m_cursor_pos = (int) m_value_temp.length();
+                m_cursor_pos = (int)utf8_glyphlen(m_value_temp);
                 m_selection_pos = 0;
             } else if (key == GLFW_KEY_X && modifiers == SYSTEM_COMMAND_MOD) {
                 copy_selection();
@@ -480,11 +517,11 @@ bool TextBox::keyboard_event(int key, int /* scancode */, int action, int modifi
 
 bool TextBox::keyboard_character_event(unsigned int codepoint) {
     if (m_editable && focused()) {
-        std::ostringstream convert;
-        convert << (char) codepoint;
+        std::string input = utf8(codepoint);
 
         delete_selection();
-        m_value_temp.insert(m_cursor_pos, convert.str());
+        size_t str_pos = utf8_strpos(m_value_temp, m_cursor_pos);
+        m_value_temp.insert(str_pos, input);
         m_cursor_pos++;
 
         m_valid_format = (m_value_temp == "") || check_format(m_value_temp, m_format);
@@ -523,8 +560,11 @@ bool TextBox::copy_selection() {
         if (begin > end)
             std::swap(begin, end);
 
+        size_t sbegin = utf8_strpos(m_value_temp, begin);
+        size_t send = utf8_strpos(m_value_temp, end);
+
         glfwSetClipboardString(sc->glfw_window(),
-                               m_value_temp.substr(begin, end).c_str());
+                               m_value_temp.substr(sbegin, send).c_str());
         return true;
     }
 
@@ -536,8 +576,10 @@ void TextBox::paste_from_clipboard() {
     if (!sc)
         return;
     const char* cbstr = glfwGetClipboardString(sc->glfw_window());
-    if (cbstr)
-        m_value_temp.insert(m_cursor_pos, std::string(cbstr));
+    if (cbstr) {
+        size_t str_pos = utf8_strpos(m_value_temp, m_cursor_pos);
+        m_value_temp.insert(str_pos, std::string(cbstr));
+    }
 }
 
 bool TextBox::delete_selection() {
@@ -548,11 +590,14 @@ bool TextBox::delete_selection() {
         if (begin > end)
             std::swap(begin, end);
 
-        if (begin == end - 1)
-            m_value_temp.erase(m_value_temp.begin() + begin);
+        size_t sbegin = utf8_strpos(m_value_temp, begin);
+        size_t send = utf8_strpos(m_value_temp, end);
+
+        if (sbegin == send - 1)
+            m_value_temp.erase(m_value_temp.begin() + sbegin);
         else
-            m_value_temp.erase(m_value_temp.begin() + begin,
-                               m_value_temp.begin() + end);
+            m_value_temp.erase(m_value_temp.begin() + sbegin,
+                               m_value_temp.begin() + send);
 
         m_cursor_pos = begin;
         m_selection_pos = -1;
@@ -617,6 +662,18 @@ int TextBox::position_to_cursor_index(float posx, float lastx,
         m_cursor_id = size;
 
     return m_cursor_id;
+}
+
+void TextBox::set_password_field(bool enable, char mask) {
+    m_password = enable;
+    m_password_mask = mask;
+}
+
+std::string TextBox::value_or_mask_str(const std::string& str) const
+{
+    return m_password
+        ? std::string(str.length(), m_password_mask).c_str()
+        : str.c_str();
 }
 
 TextBox::SpinArea TextBox::spin_area(const Vector2i & pos) {
