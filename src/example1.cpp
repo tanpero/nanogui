@@ -43,7 +43,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #if defined(_MSC_VER)
 #  pragma warning (disable: 4505) // don't warn about dead code in stb_image.h
-#  pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
 #elif defined(__GNUC__)
 #   pragma GCC diagnostic ignored "-Wunused-function"
 #endif
@@ -53,7 +52,7 @@ using namespace nanogui;
 
 class ExampleApplication : public Screen {
 public:
-    ExampleApplication() : Screen(Vector2i(1024, 768), "NanoGUI Test") {
+    ExampleApplication() : Screen(Vector2i(1024, 768), "ÄãºÃ£¬ÊÀ½ç") {
         inc_ref();
 
         set_icon("C:\\Users\\camille\\Pictures\\icon.ico");
@@ -67,14 +66,20 @@ public:
            freed when the parent window is deleted */
         new Label(window, "Push buttons", "sans-bold");
 
-        Button *b = new Button(window, "Plain button");
-        b->set_callback([] { std::cout << "pushed!" << std::endl; });
+        Button *b = new Button(window, "Fullscreen");
+        b->set_callback([this] {
+            std::cout << "pushed!" << std::endl;
+            fullscreen();
+            });
         b->set_tooltip("short tooltip");
 
         /* Alternative construction notation using variadic template */
         b = window->add<Button>("Styled", FA_ROCKET);
         b->set_background_color(Color(0, 0, 255, 25));
-        b->set_callback([] { std::cout << "pushed!" << std::endl; });
+        b->set_callback([this] {
+            std::cout << "pushed!" << std::endl;
+            restore_size_and_pos();
+            });
         b->set_tooltip("This button has a fairly long tooltip. It is so long, in "
                 "fact, that the shown text will span several lines.");
 
@@ -143,7 +148,7 @@ public:
 
 #if defined(_WIN32)
         /// Executable is in the Debug/Release/.. subdirectory
-        std::string resources_folder_path("../icons");
+        std::string resources_folder_path("icons");
 #else
         std::string resources_folder_path("./icons");
 #endif

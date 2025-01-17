@@ -92,6 +92,9 @@ public:
     bool set_icon(const std::string& filepath);
     void set_captionbar_color(uint32_t v);
 
+    void restore_size_and_pos();
+    void fullscreen();
+
     /// Get the window title bar caption
     const std::string &caption() const { return m_caption; }
 
@@ -303,6 +306,12 @@ protected:
     void *m_metal_drawable = nullptr;
     ref<Texture> m_depth_stencil_texture;
 #endif
+
+private:
+    int width;
+    int height;
+    int pos_x;
+    int pos_y;
 };
 
 NAMESPACE_END(nanogui)
