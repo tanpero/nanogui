@@ -17,6 +17,7 @@
 #include <nanogui/window.h>
 #include <nanogui/popup.h>
 #include <nanogui/metal.h>
+#include <nanogui/popupbutton.h>
 #include <map>
 #include <iostream>
 
@@ -114,6 +115,7 @@ Screen::Screen()
       m_shutdown_glfw(false), m_fullscreen(false), m_depth_buffer(false),
       m_stencil_buffer(false), m_float_buffer(false), m_redraw(false) {
     memset(m_cursors, 0, sizeof(GLFWcursor *) * (size_t) Cursor::CursorCount);
+
 #if defined(NANOGUI_USE_OPENGL)
     GLint n_stencil_bits = 0, n_depth_bits = 0;
     GLboolean float_mode;
@@ -523,7 +525,6 @@ Screen::~Screen() {
 }
 
 
-
 bool Screen::set_icon(const std::string& filepath)
 {
 #ifdef _WIN32
@@ -553,6 +554,27 @@ void Screen::set_captionbar_color(uint32_t v)
         &DARK_COLOR, sizeof(DARK_COLOR)));
 #endif // _WIN32
 }
+
+
+void Screen::restore_size_and_pos() {
+    glfwSetWindowPos(m_glfw_window, pos_x, pos_y); // 将窗口移动到屏幕左上角
+    glfwSetWindowSize(m_glfw_window, width, height); // 将窗口大小设置为屏幕分辨率
+}
+
+
+void Screen::fullscreen() {
+
+    glfwGetWindowSize(m_glfw_window, &width, &height);
+    glfwGetWindowPos(m_glfw_window, &pos_x, &pos_y);
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    int _width = mode->width;
+    int _height = mode->height;
+    glfwSetWindowPos(m_glfw_window, 0, 0); // 将窗口移动到屏幕左上角
+    glfwSetWindowSize(m_glfw_window, _width, _height); // 将窗口大小设置为屏幕分辨率
+}
+
 
 void Screen::set_visible(bool visible) {
     if (m_visible != visible) {
@@ -814,6 +836,27 @@ void Screen::mouse_button_callback_event(int button, int action, int modifiers) 
             button = GLFW_MOUSE_BUTTON_2;
     #endif
 
+    // Close any popup window, if clicked outside
+    if (action == GLFW_PRESS)
+        {
+            for (auto w : m_focus_path) {
+                Popup* p = dynamic_cast<Popup*>(w);
+                if (p && !p->contains(m_mouse_pos)) {
+                    for (auto widget : p->parent_window()->children()) {
+                        PopupButton* b = dynamic_cast<PopupButton*>(widget);
+
+                        // We unpush the PopupButton that triggered the Popup-Window only,
+                        // if the user is clicking outside of this PopupButton
+                        if (b && b->pushed() && !b->contains(m_mouse_pos - p->parent_window()->position())) {
+                            b->set_pushed(false);
+                            if (b->change_callback())
+                                b->change_callback()(false);
+                        }
+                    }
+                }
+            }
+        }
+
     try {
         if (m_focus_path.size() > 1) {
             const Window *window =
@@ -934,6 +977,16 @@ void Screen::resize_callback_event(int, int) {
         std::cerr << "Caught exception in event handler: " << e.what() << std::endl;
     }
     redraw();
+
+    GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+    int _width = mode->width;
+    int _height = mode->height;
+    if (height != _height && width != _width)
+    {
+        glfwGetWindowPos(m_glfw_window, &pos_x, &pos_y); // 将窗口移动到屏幕左上角
+        glfwGetWindowSize(m_glfw_window, &width, &height); // 将窗口大小设置为屏幕分辨率
+    }
 }
 
 void Screen::update_focus(Widget *widget) {
