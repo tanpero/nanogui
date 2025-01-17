@@ -233,6 +233,11 @@ public:
             std::cout << "File dialog result: " << file_dialog(
                     { {"png", "Portable Network Graphics"}, {"txt", "Text file"} }, true) << std::endl;
         });
+        new Label(window, "Directory dialog", "sans-bold");
+        b = new Button(tools, "Browse");
+        b->set_callback([&] {
+            std::cout << "directory dialog result: " << directory_dialog() << std::endl;
+            });
 
         new Label(window, "Combo box", "sans-bold");
         new ComboBox(window, { "Combo box item 1", "Combo box item 2", "Combo box item 3"});

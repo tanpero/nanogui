@@ -1,4 +1,4 @@
-/*
+﻿/*
     NanoGUI was developed by Wenzel Jakob <wenzel.jakob@epfl.ch>.
     The widget drawing code is based on the NanoVG demo application
     by Mikko Mononen.
@@ -317,6 +317,25 @@ file_dialog(const std::vector<std::pair<std::string, std::string>> &filetypes,
  * adjusts the file path to the parent directory containing the bundle.
  */
 extern NANOGUI_EXPORT void chdir_to_bundle_parent();
+#endif
+
+/*
+ * Directory Dialog
+ * Copyright © mattVHartley
+ * Jul 23, 2020
+ * Copyright © arpit15
+ * Aug 8, 2020
+ */
+/**
+* \brief Open a native directory dialog.
+*
+*
+* \param saved_path
+*     Optional parameter to specify a directory that the dialog should start in.
+*/
+#if !defined(__APPLE__)
+    extern NANOGUI_EXPORT std::string
+    directory_dialog(std::string saved_path = "");
 #endif
 
 /**
